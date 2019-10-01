@@ -17,17 +17,24 @@ import (
 // instance, scanning the results into a Go struct.
 
 func main() {
-	// I'm throwing away the errors here for brevity's sake but you should check them in real code.
-	db, _ := sql.Open("postgres", "postgres://postgres@/goqusearch?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://postgres@/goqusearch?sslmode=disable")
+	check(err)
 	gdb := goqu.New("postgres", db)
-	businesses, _ := searchBusinesses(
+	businesses, err := searchBusinesses(
 		gdb,
 		"asian",
 		FacetEq("kid_friendly", true),
 		FacetLt("price_range", 2),
 		Within(3, 40.606536, -111.854952),
 	)
+	check(err)
 	spew.Dump(businesses)
+}
+
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 func searchBusinesses(db *goqu.Database, searchTerm string, filters ...BusinessSearchFilter) ([]BusinessSearchResult, error) {
@@ -126,7 +133,7 @@ func FacetLt(key string, value float64) BusinessSearchFilter {
 		facet := goqu.L("facets -> ?", key)
 		return query.Where(
 			goqu.Func("jsonb_typeof", facet).Eq("number"),
-			goqu.Cast(facet, "NUMERIC").Lt(value),
+			goqu.Cast(goqu.Cast(facet, "TEXT"), "NUMERIC").Lt(value),
 		), nil
 	}
 }
